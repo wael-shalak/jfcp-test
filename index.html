@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JFCP Lebanon | Joint Fleet Coordination</title>
+    <title>JFCP Lebanon | Joint Fleet Coordination Platform</title>
     
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Firebase SDK Integration -->
+    <!-- Firebase SDK Modules -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // YOUR UNIQUE FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyBaDy4U_dhRKdzjqfjGG-kmuQIPtuxFiJw",
             authDomain: "jfcp-lebanon.firebaseapp.com",
@@ -26,11 +25,10 @@
             measurementId: "G-G36Y25C0Y1"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Export to Global Window for button access
+        // Exporting functions to window so they work with HTML onclick attributes
         window.db = db;
         window.fs_addDoc = addDoc;
         window.fs_collection = collection;
@@ -40,84 +38,82 @@
     </script>
 
     <style>
-        #map { height: calc(100vh - 80px); width: 100%; z-index: 1; border-bottom: 4px solid #000; }
+        #map { height: calc(100vh - 80px); width: 100%; z-index: 1; }
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); overflow-y: auto; }
         .tab-content { display: none; height: calc(100vh - 80px); }
         .tab-content.active { display: block; }
         
-        /* High-Contrast Square Inputs */
-        .form-input { @apply w-full border-4 border-slate-900 rounded-none p-4 bg-white focus:bg-blue-50 focus:border-blue-600 outline-none font-black text-slate-900 transition-all; }
+        /* Square-Line Input Styling */
+        .form-input { @apply w-full border-2 border-slate-900 rounded-none p-3 bg-white focus:bg-blue-50 focus:border-blue-600 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300; }
         .form-label { @apply block text-[11px] font-black uppercase text-slate-600 mb-1 tracking-widest; }
         .required-star { color: #dc2626; }
 
-        /* Map UI Styling */
-        .car-marker { background: white; border: 3px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 15px rgba(0,0,0,0.4); }
-        .leaflet-tooltip { border-radius: 0; border: 3px solid #000; font-weight: 900; background: white; padding: 10px; }
+        .car-marker { background: white; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .leaflet-tooltip { border-radius: 0; border: 2px solid #000; font-weight: 900; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-900 overflow-hidden">
 
     <!-- LOGIN SCREEN -->
     <div id="login-screen" class="fixed inset-0 z-[5000] bg-slate-950 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md border-[8px] border-slate-900 shadow-[20px_20px_0px_0px_rgba(30,64,175,1)]">
-            <div class="p-10 bg-blue-700 text-white border-b-[8px] border-slate-900">
-                <h1 class="text-4xl font-black italic tracking-tighter uppercase leading-none">JFCP LOG-IN</h1>
-                <p class="text-blue-100 text-[10px] font-black uppercase mt-3 tracking-[0.2em] underline italic">Secure Network Portal</p>
+        <div class="bg-white w-full max-w-md rounded-none border-[6px] border-slate-900 shadow-[20px_20px_0px_0px_rgba(30,64,175,1)]">
+            <div class="p-10 bg-blue-700 text-white border-b-[6px] border-slate-900">
+                <h1 class="text-4xl font-black italic tracking-tighter">JFCP LOGIN</h1>
+                <p class="text-blue-100 text-[10px] font-bold uppercase tracking-[0.3em] mt-2 underline">Secure Coordination Portal</p>
             </div>
             <div class="p-10 space-y-6">
-                <div><label class="form-label">Email Address</label><input type="email" id="login-email" placeholder="user1@org.lb" class="form-input"></div>
-                <div><label class="form-label">Password</label><input type="password" id="login-pass" placeholder="••••••••" class="form-input"></div>
-                <button onclick="handleLogin()" class="w-full bg-slate-900 text-white font-black py-6 uppercase tracking-[0.3em] hover:bg-blue-600 transition-all">Start Session</button>
+                <div><label class="form-label tracking-tighter">Enter Email (user1@org.lb ... user10@org.lb)</label><input type="email" id="login-email" class="form-input"></div>
+                <div><label class="form-label tracking-tighter">Enter Password (fleet01 ... fleet10)</label><input type="password" id="login-pass" class="form-input"></div>
+                <button onclick="handleLogin()" class="w-full bg-slate-900 text-white font-black py-5 rounded-none hover:bg-blue-700 transition-all uppercase tracking-[0.2em] text-sm">Initialize Session</button>
                 <p id="login-error" class="text-red-600 text-[10px] font-black uppercase text-center hidden">Access Denied: Invalid Credentials</p>
             </div>
         </div>
     </div>
 
-    <!-- MAIN APP SHELL -->
+    <!-- MAIN APP -->
     <div id="app-shell" class="hidden flex h-screen overflow-hidden">
-        
         <!-- SIDEBAR -->
-        <aside class="w-80 bg-white border-r-[4px] border-slate-900 h-screen flex flex-col z-20">
-            <div class="p-6 bg-slate-900 text-white flex items-center gap-3 font-black italic text-xl border-b-[4px] border-slate-900">
-                <div class="p-2 bg-blue-600"><i data-lucide="shield-check" class="text-white w-5 h-5"></i></div>
-                JFCP LEBANON
+        <aside class="w-80 bg-white border-r-[3px] border-slate-900 h-screen flex flex-col z-20">
+            <div class="p-6 bg-slate-900 text-white flex items-center gap-3 font-black italic text-xl border-b-[3px] border-slate-900">
+                <i data-lucide="shield"></i> JFCP LEBANON
             </div>
-            <nav class="p-4 flex-1 space-y-3">
-                <button onclick="switchTab('map')" id="nav-map" class="w-full flex items-center gap-3 px-4 py-4 font-black text-blue-700 bg-blue-50 border-4 border-blue-700"><i data-lucide="map"></i> MAP NETWORK</button>
-                <button onclick="switchTab('coordination')" id="nav-coordination" class="relative w-full flex items-center justify-between px-4 py-4 font-black text-slate-500 border-4 border-transparent hover:border-slate-300">
+            <nav class="p-4 flex-1 space-y-2">
+                <button onclick="switchTab('map')" id="nav-map" class="w-full flex items-center gap-3 px-4 py-4 font-black text-blue-700 bg-blue-50 border-2 border-blue-700"><i data-lucide="map-pin"></i> LIVE FLEET MAP</button>
+                <button onclick="switchTab('coordination')" id="nav-coordination" class="relative w-full flex items-center justify-between px-4 py-4 font-black text-slate-500 border-2 border-transparent hover:border-slate-300 transition">
                     <div class="flex items-center gap-3"><i data-lucide="users"></i> COORDINATION</div>
                     <div id="notif-badge" class="hidden bg-red-600 text-white text-[10px] px-2 py-1 font-black">0</div>
                 </button>
-                <button onclick="openModal('publishModal')" class="w-full flex items-center gap-3 px-4 py-5 font-black text-white bg-slate-900 hover:bg-blue-700 transition-all shadow-[8px_8px_0px_0px_rgba(30,64,175,1)] mt-10 uppercase tracking-widest">
-                    <i data-lucide="plus-square"></i> Publish Mission
+                <button onclick="openModal('publishModal')" class="w-full flex items-center gap-3 px-4 py-4 font-black text-white bg-blue-600 hover:bg-slate-900 transition-all shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mt-8">
+                    <i data-lucide="plus-square"></i> PUBLISH MISSION
                 </button>
             </nav>
-            <div class="p-6 border-t-[4px] border-slate-900 bg-slate-100">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logged User</p>
-                <p class="text-sm font-black text-slate-900 uppercase truncate" id="user-display">...</p>
-                <button onclick="handleLogout()" class="text-[10px] font-black text-red-600 uppercase mt-4 flex items-center gap-2 hover:underline"><i data-lucide="power"></i> Terminate Session</button>
+            <div class="p-6 border-t-[3px] border-slate-900 bg-slate-50">
+                <p class="text-[10px] font-black text-slate-400 uppercase">Current Node</p>
+                <p class="text-xs font-black text-slate-900 uppercase mt-1 truncate" id="user-display">...</p>
+                <button onclick="handleLogout()" class="text-[10px] font-black text-red-600 uppercase mt-4 flex items-center gap-2 hover:underline"><i data-lucide="log-out"></i> End Session</button>
             </div>
         </aside>
 
         <main class="flex-1 flex flex-col overflow-hidden">
-            <!-- HEADER -->
-            <header class="h-20 bg-white border-b-[4px] border-slate-900 flex items-center justify-between px-8 z-10 shadow-sm">
-                <div class="flex items-center bg-white border-4 border-slate-900">
-                    <button onclick="changeDate(-1)" class="p-3 border-r-4 border-slate-900 hover:bg-slate-100"><i data-lucide="arrow-left"></i></button>
-                    <div class="px-10 font-black text-slate-900 uppercase text-lg tracking-tighter" id="date-display">...</div>
-                    <button onclick="changeDate(1)" class="p-3 border-l-4 border-slate-900 hover:bg-slate-100"><i data-lucide="arrow-right"></i></button>
+            <header class="h-20 bg-white border-b-[3px] border-slate-900 flex items-center justify-between px-8 z-10">
+                <div class="flex items-center bg-white border-2 border-slate-900 p-1">
+                    <button onclick="changeDate(-1)" class="p-3 hover:bg-slate-100 transition border-r-2 border-slate-900"><i data-lucide="arrow-left"></i></button>
+                    <div class="px-10 text-center min-w-[220px] font-black text-slate-900 uppercase text-sm tracking-widest" id="date-display">...</div>
+                    <button onclick="changeDate(1)" class="p-3 hover:bg-slate-100 transition border-l-2 border-slate-900"><i data-lucide="arrow-right"></i></button>
                 </div>
-                <div class="bg-green-50 border-4 border-green-600 px-6 py-2 flex items-center gap-2 text-green-700 font-black text-xs uppercase tracking-widest">
-                    <span class="w-3 h-3 bg-green-600 rounded-full animate-pulse"></span> Cloud Active
+                <div class="flex items-center gap-4">
+                    <div class="bg-blue-600 text-white px-4 py-2 font-black text-xs border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <span id="stat-seats">0</span> SEATS AVAILABLE
+                    </div>
                 </div>
             </header>
 
             <!-- TAB: MAP -->
             <div id="content-map" class="tab-content active relative">
                 <div id="map"></div>
-                <div class="absolute bottom-10 left-10 z-[1000] bg-white p-6 border-[6px] border-slate-900 shadow-[15px_15px_0px_0px_rgba(0,0,0,1)] min-w-[300px]">
-                    <p class="text-[11px] font-black uppercase mb-4 border-b-4 border-slate-900 pb-2">Network Legend</p>
-                    <div class="space-y-4" id="map-legend"></div>
+                <div class="absolute bottom-10 left-10 z-[1000] bg-white p-6 border-[4px] border-slate-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-[280px]">
+                    <p class="text-[11px] font-black uppercase text-slate-900 mb-4 border-b-2 border-slate-900 pb-2">Active Network Movements</p>
+                    <div class="space-y-3" id="map-legend"></div>
                 </div>
             </div>
 
@@ -125,60 +121,63 @@
             <div id="content-coordination" class="tab-content flex-1 p-10 overflow-y-auto bg-slate-200">
                 <div class="max-w-5xl mx-auto space-y-12 pb-20">
                     <div id="incoming-section">
-                        <h2 class="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
-                            <i data-lucide="message-circle"></i> Approvals Required
+                        <h2 class="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-6 flex items-center gap-3">
+                            <i data-lucide="message-square"></i> Incoming Seat Requests
                         </h2>
                         <div id="incoming-list" class="space-y-4"></div>
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
-                            <i data-lucide="file-text"></i> My Briefings & Bookings
+                        <h2 class="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-6 flex items-center gap-3">
+                            <i data-lucide="check-circle"></i> My Mission Status & Briefings
                         </h2>
-                        <div id="my-request-status" class="grid grid-cols-1 md:grid-cols-2 gap-8"></div>
+                        <div id="my-request-status" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- MODAL: PUBLISH -->
+    <!-- MODAL: PUBLISH MISSION -->
     <div id="publishModal" class="modal">
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white border-[8px] border-slate-900 w-full max-w-2xl p-12 shadow-[40px_40px_0px_0px_rgba(30,64,175,1)]">
-                <h3 class="text-4xl font-black uppercase italic mb-10 border-b-4 border-slate-900 pb-4 tracking-tighter">New Mission</h3>
+            <div class="bg-white rounded-none w-full max-w-2xl border-[6px] border-slate-900 shadow-[30px_30px_0px_0px_rgba(30,64,175,1)] p-12">
+                <div class="flex justify-between items-center mb-10 border-b-4 border-slate-900 pb-6">
+                    <h3 class="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Publish Mission</h3>
+                    <button onclick="closeModal('publishModal')" class="bg-slate-900 text-white p-2">✕</button>
+                </div>
                 <form id="missionForm" class="grid grid-cols-2 gap-6" onsubmit="event.preventDefault(); submitMission();">
                     <div><label class="form-label">Driver Name <span class="required-star">*</span></label><input id="pubDriver" class="form-input" required></div>
-                    <div><label class="form-label">Driver Phone <span class="required-star">*</span></label><input id="pubPhone" class="form-input" required></div>
-                    <div class="col-span-2 grid grid-cols-3 gap-6 bg-slate-100 p-6 border-4 border-slate-900">
+                    <div><label class="form-label">Driver Phone <span class="required-star">*</span></label><input id="pubPhone" class="form-input" placeholder="+961..." required></div>
+                    <div class="col-span-2 grid grid-cols-3 gap-4 bg-slate-100 p-6 border-2 border-slate-900">
                         <div><label class="form-label">Vehicle Type <span class="required-star">*</span></label><input id="pubCarType" class="form-input" required></div>
                         <div><label class="form-label">Plate # <span class="required-star">*</span></label><input id="pubPlate" class="form-input" required></div>
-                        <div><label class="form-label">Total Seats <span class="required-star">*</span></label><input type="number" id="pubTotalSeats" min="1" class="form-input" required></div>
+                        <div><label class="form-label">Total Seats <span class="required-star">*</span></label><input type="number" id="pubTotalSeats" min="1" max="15" class="form-input" required></div>
                     </div>
                     <div><label class="form-label">Origin <span class="required-star">*</span></label><select id="pubOrigin" class="form-input" required></select></div>
                     <div><label class="form-label">Destination <span class="required-star">*</span></label><select id="pubDest" class="form-input" required></select></div>
-                    <div><label class="form-label">Departure <span class="required-star">*</span></label><input type="time" id="pubDep" class="form-input" required></div>
-                    <div><label class="form-label">Return <span class="required-star">*</span></label><input type="time" id="pubRet" class="form-input" required></div>
+                    <div><label class="form-label">Dep. Time <span class="required-star">*</span></label><input type="time" id="pubDep" class="form-input" required></div>
+                    <div><label class="form-label">Ret. Time <span class="required-star">*</span></label><input type="time" id="pubRet" class="form-input" required></div>
                     <div class="col-span-2 pt-6">
-                        <button type="submit" class="w-full bg-blue-700 text-white font-black py-6 border-4 border-slate-900 uppercase tracking-widest text-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">Broadcast to Cloud</button>
+                        <button type="submit" class="w-full bg-blue-700 text-white font-black py-6 border-4 border-slate-900 hover:bg-slate-900 transition-all uppercase tracking-widest shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">Broadcast Movement</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: REQUEST -->
+    <!-- MODAL: REQUEST SEAT -->
     <div id="requestModal" class="modal">
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white border-[8px] border-slate-900 w-full max-w-lg p-12 shadow-[30px_30px_0px_0px_rgba(30,64,175,1)]">
-                <h3 class="text-3xl font-black uppercase mb-8 border-b-4 border-slate-900 pb-4 tracking-tighter text-blue-800">Booking</h3>
+            <div class="bg-white border-[6px] border-slate-900 w-full max-w-lg p-12">
+                <h3 class="text-2xl font-black uppercase text-slate-900 mb-8 border-b-4 border-slate-900 pb-4">Seat Booking</h3>
                 <form id="bookingForm" class="space-y-6" onsubmit="event.preventDefault(); submitBooking();">
-                    <div id="request-summary" class="bg-slate-900 p-6 text-white text-[11px] font-black italic border-l-[12px] border-blue-600 uppercase"></div>
-                    <div><label class="form-label">Passenger Names <span class="required-star">*</span></label><textarea id="reqNames" class="form-input" rows="3" required></textarea></div>
-                    <div class="grid grid-cols-2 gap-6">
+                    <div id="request-summary" class="bg-slate-900 p-6 text-white text-xs font-bold leading-relaxed border-l-8 border-blue-500"></div>
+                    <div><label class="form-label">Passengers <span class="required-star">*</span></label><textarea id="reqNames" class="form-input" rows="3" placeholder="Full Name(s)..." required></textarea></div>
+                    <div class="grid grid-cols-2 gap-4">
                         <div><label class="form-label">Position <span class="required-star">*</span></label><input id="reqPos" class="form-input" required></div>
-                        <div><label class="form-label">Seats Needed <span class="required-star">*</span></label><input type="number" id="reqSeats" min="1" class="form-input" required></div>
+                        <div><label class="form-label">Seats Needed <span class="required-star">*</span></label><input type="number" id="reqSeats" value="1" min="1" class="form-input" required></div>
                     </div>
-                    <button type="submit" class="w-full bg-blue-700 text-white font-black py-5 border-4 border-slate-900 uppercase tracking-widest shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">Submit Request</button>
+                    <button type="submit" class="w-full bg-blue-700 text-white font-black py-5 border-4 border-slate-900 hover:bg-slate-900 transition uppercase shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">Submit Request</button>
                 </form>
             </div>
         </div>
@@ -187,12 +186,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // AUTHENTICATION DB
-        const VALID_USERS = { 
-            "user1@org.lb": "fleet01", "user2@org.lb": "fleet02", "user3@org.lb": "fleet03", 
-            "user4@org.lb": "fleet04", "user5@org.lb": "fleet05", "user6@org.lb": "fleet06", 
-            "user7@org.lb": "fleet07", "user8@org.lb": "fleet08", "user9@org.lb": "fleet09", "user10@org.lb": "fleet10" 
-        };
+        const VALID_USERS = { "user1@org.lb": "fleet01", "user2@org.lb": "fleet02", "user3@org.lb": "fleet03", "user4@org.lb": "fleet04", "user5@org.lb": "fleet05", "user6@org.lb": "fleet06", "user7@org.lb": "fleet07", "user8@org.lb": "fleet08", "user9@org.lb": "fleet09", "user10@org.lb": "fleet10" };
         const ROUTE_COLORS = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2", "#be185d", "#4d7c0f", "#4338ca", "#b45309"];
         const locations = ["Beirut", "Tripoli", "Sidon", "Tyre", "Zahle", "Baalbek", "Jounieh", "Byblos", "Nabatieh", "Batroun", "Bcharre", "Akkar"];
         const coords = { "Beirut": [33.8938, 35.5018], "Tripoli": [34.4367, 35.8497], "Sidon": [33.5611, 35.3729], "Tyre": [33.2708, 35.1962], "Zahle": [33.8463, 35.9020], "Baalbek": [34.0058, 36.2181], "Jounieh": [33.9808, 35.6175], "Byblos": [34.1230, 35.6515], "Nabatieh": [33.3761, 35.4828], "Batroun": [34.2553, 35.6586], "Bcharre": [34.2505, 36.0114], "Akkar": [34.5422, 36.0797] };
@@ -201,14 +195,14 @@
         let activeMissions = [], activeBookings = [], activeTripId = null;
 
         function handleLogin() {
-            const email = document.getElementById('login-email').value, pass = document.getElementById('login-pass').value;
+            const email = document.getElementById('login-email').value, pass = document.getElementById('login-pass').value, err = document.getElementById('login-error');
             if (VALID_USERS[email] === pass) {
                 currentUser = { email, name: email.split('@')[0].toUpperCase(), org: "Organization " + email.match(/\d+/)[0] };
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-shell').classList.remove('hidden');
                 document.getElementById('user-display').innerText = `${currentUser.org} | ${currentUser.name}`;
                 initApp();
-            } else { document.getElementById('login-error').classList.remove('hidden'); }
+            } else { err.classList.remove('hidden'); }
         }
 
         function handleLogout() { location.reload(); }
@@ -223,13 +217,14 @@
                 locations.forEach(l => { o.innerHTML += `<option value="${l}">${l}</option>`; d.innerHTML += `<option value="${l}">${l}</option>`; });
             }
 
-            // CLOUD DATA LISTENERS
-            window.fs_onSnapshot(window.fs_collection(window.db, "missions"), (snap) => {
-                activeMissions = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sync with Firebase Firestore
+            window.fs_onSnapshot(window.fs_collection(window.db, "missions"), (snapshot) => {
+                activeMissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 render();
-            });
-            window.fs_onSnapshot(window.fs_collection(window.db, "bookings"), (snap) => {
-                activeBookings = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }, (err) => { alert("Database Error: " + err.message); });
+
+            window.fs_onSnapshot(window.fs_collection(window.db, "bookings"), (snapshot) => {
+                activeBookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 render();
             });
         }
@@ -248,66 +243,69 @@
             const ds = formatDate(currentDate);
             document.getElementById('date-display').innerText = ds;
             const dm = activeMissions.filter(m => m.date === ds);
-            const legend = document.getElementById('map-legend'); legend.innerHTML = '';
-            polylineLayer.clearLayers(); markerLayer.clearLayers();
+            const legend = document.getElementById('map-legend');
+            legend.innerHTML = '';
+            
+            polylineLayer.clearLayers();
+            markerLayer.clearLayers();
 
             dm.forEach((m, idx) => {
                 const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
                 const statusTxt = m.availableSeats <= 0 ? 'RESERVED' : `${m.availableSeats} SEATS OPEN`;
+                const line = L.polyline([coords[m.origin], coords[m.dest]], { color, weight: 6, opacity: 0.8, dashArray: '12, 12' }).addTo(polylineLayer);
                 
-                const line = L.polyline([coords[m.origin], coords[m.dest]], { color, weight: 8, opacity: 0.8, dashArray: '15, 15' }).addTo(polylineLayer);
+                const joined = activeBookings.filter(b => b.missionId === m.id && b.status === 'approved').map(b => `${b.org} (+${b.passengers})`).join(', ');
+                line.bindTooltip(`<b>${m.org}</b><br>${statusTxt}<br>${joined || 'Empty'}`, { sticky: true });
                 
-                const confirmed = activeBookings.filter(b => b.missionId === m.id && b.status === 'approved').map(b => `${b.org} (+${b.passengers})`).join(', ');
-                line.bindTooltip(`<b>${m.org}</b><br>${statusTxt}<br>${confirmed ? 'Approved: ' + confirmed : 'Open Corridor'}`, { sticky: true });
-                
-                line.on('mouseover', function() { this.setStyle({ weight: 12, opacity: 1, dashArray: '' }); });
-                line.on('mouseout', function() { this.setStyle({ weight: 8, opacity: 0.8, dashArray: '15, 15' }); });
-                
+                line.on('mouseover', function() { this.setStyle({ weight: 10, opacity: 1, dashArray: '' }); });
+                line.on('mouseout', function() { this.setStyle({ weight: 6, opacity: 0.8, dashArray: '12, 12' }); });
                 line.on('click', () => {
-                    if(m.owner === currentUser.email) return alert("OWN MISSION");
-                    if(m.availableSeats <= 0) return alert("NO SEATS REMAINING");
+                    if(m.owner === currentUser.email) return alert("Your Mission");
+                    if(m.availableSeats <= 0) return alert("Fully Reserved");
                     activeTripId = m.id;
                     document.getElementById('request-summary').innerText = `REQUESTING ${m.org}: ${m.origin} ➔ ${m.dest}`;
                     openModal('requestModal');
                 });
 
-                const icon = L.divIcon({ className: 'car-marker', html: `<i data-lucide="car" style="width:14px; height:14px; color:${color}"></i>`, iconSize: [28, 28] });
-                L.marker(coords[m.origin], { icon }).addTo(markerLayer);
-                L.marker(coords[m.dest], { icon }).addTo(markerLayer);
-                legend.innerHTML += `<div class="p-2 border-b-2 border-slate-900 last:border-0"><div class="flex items-center gap-2 font-black text-[10px]"><span class="w-3 h-3 border border-black" style="background:${color}"></span> ${m.org}</div><p class="text-[9px] font-black mt-1 ${m.availableSeats <= 0 ? 'text-red-600' : 'text-blue-700'}">${statusTxt}</p></div>`;
+                const car = L.divIcon({ className: 'car-marker', html: `<i data-lucide="car" style="width:14px; height:14px; color:${color}"></i>`, iconSize: [26, 26] });
+                L.marker(coords[m.origin], { icon: car }).addTo(markerLayer);
+                L.marker(coords[m.dest], { icon: car }).addTo(markerLayer);
+
+                legend.innerHTML += `<div class="p-2 border-b-2 border-slate-100 last:border-0"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2" style="background:${color}"></span> <span class="text-[10px] font-black uppercase tracking-tighter">${m.org}</span></div><p class="text-[9px] font-black mt-1 ${m.availableSeats <= 0 ? 'text-red-600' : 'text-blue-700'} tracking-tighter uppercase">${statusTxt}</p></div>`;
             });
 
             const inc = activeBookings.filter(b => activeMissions.find(m => m.id === b.missionId && m.owner === currentUser.email) && b.status === 'pending');
             document.getElementById('notif-badge').innerText = inc.length;
             document.getElementById('notif-badge').classList.toggle('hidden', !inc.length);
-            
+            document.getElementById('stat-seats').innerText = dm.reduce((acc, cur) => acc + parseInt(cur.availableSeats), 0);
+
             renderCoordination(inc);
             lucide.createIcons();
         }
 
         function renderCoordination(inc) {
             const incList = document.getElementById('incoming-list');
-            incList.innerHTML = inc.length ? '' : '<p class="font-black text-slate-400 p-12 border-4 border-dashed border-slate-300 text-center uppercase tracking-widest text-xs">No Incoming Coordination Requests</p>';
+            incList.innerHTML = inc.length ? '' : '<p class="text-xs font-bold text-slate-400 p-12 border-4 border-dashed border-slate-300 text-center uppercase tracking-widest">No Incoming Requests</p>';
             inc.forEach(r => {
                 const m = activeMissions.find(ms => ms.id === r.missionId);
-                incList.innerHTML += `<div class="bg-white p-10 border-[6px] border-slate-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] flex justify-between items-center animate-pulse">
-                    <div><h4 class="text-2xl font-black italic underline tracking-tighter">${r.org} WANTS ${r.passengers} SEATS</h4><p class="font-black text-xs mt-3 uppercase text-blue-600">MISSION: ${m.dest} | PASSENGERS: ${r.names}</p></div>
+                incList.innerHTML += `<div class="bg-white p-10 border-4 border-slate-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] flex justify-between items-center animate-pulse">
+                    <div><h4 class="text-2xl font-black italic underline tracking-tighter">${r.org} WANTS ${r.passengers} SEATS</h4><p class="font-black text-xs mt-3 uppercase text-blue-600">MISSION: ${m.dest} | FOR: ${r.names}</p></div>
                     <button onclick="approveRequest('${r.id}')" class="bg-blue-600 text-white px-10 py-5 font-black uppercase text-xs border-4 border-slate-900 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-900">Approve Access</button>
                 </div>`;
             });
 
             const statusList = document.getElementById('my-request-status');
             const myReqs = activeBookings.filter(b => b.requesterEmail === currentUser.email);
-            statusList.innerHTML = myReqs.length ? '' : '<p class="font-black text-slate-400 p-12 border-4 border-dashed border-slate-300 text-center uppercase tracking-widest col-span-2 text-xs">No Active Movement Briefings</p>';
+            statusList.innerHTML = myReqs.length ? '' : '<p class="font-black text-slate-400 p-12 border-4 border-dashed border-slate-300 text-center uppercase tracking-widest col-span-2 text-xs">No Active Fleet Bookings</p>';
             myReqs.forEach(r => {
                 const m = activeMissions.find(ms => ms.id === r.missionId);
                 if(!m) return;
                 const approved = r.status === 'approved';
-                statusList.innerHTML += `<div class="bg-white p-10 border-[6px] border-slate-900 shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)]">
-                    <div class="flex justify-between items-start mb-8"><h4 class="text-3xl font-black italic uppercase tracking-tighter leading-none">${m.origin} ➔ ${m.dest}</h4><span class="text-[10px] font-black px-6 py-2 border-4 border-slate-900 ${approved ? 'bg-green-600 text-white' : 'bg-slate-100'} uppercase">${r.status}</span></div>
+                statusList.innerHTML += `<div class="bg-white p-10 border-4 ${approved ? 'border-green-600 shadow-[10px_10px_0px_0px_rgba(22,163,74,0.3)]' : 'border-slate-300 shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)]'}">
+                    <div class="flex justify-between items-start mb-8"><h4 class="text-3xl font-black italic uppercase tracking-tighter">${m.origin} ➔ ${m.dest}</h4><span class="text-[10px] font-black px-6 py-2 border-4 border-slate-900 ${approved ? 'bg-green-600 text-white' : 'bg-slate-100'} uppercase">${r.status}</span></div>
                     ${approved ? `<div class="bg-slate-100 p-6 border-4 border-slate-900 text-[11px] font-black grid grid-cols-2 gap-8 uppercase tracking-widest">
-                        <div><p class="text-slate-400 mb-1">Driver</p>${m.driver} | ${m.phone}</div>
-                        <div><p class="text-slate-400 mb-1">Vehicle</p>${m.carType} | ${m.plate}</div>
+                        <div><p class="text-slate-400 mb-1">Driver Detail</p>${m.driver} | ${m.phone}</div>
+                        <div><p class="text-slate-400 mb-1">Vehicle Detail</p>${m.carType} | ${m.plate}</div>
                         <div><p class="text-slate-400 mb-1">Schedule</p>${m.depTime} ➔ ${m.retTime}</div>
                     </div>` : `<p class="font-black text-[10px] text-slate-400 border-4 border-dashed border-slate-200 p-6 text-center uppercase">Security Briefing Locked - Pending Authorization</p>`}
                 </div>`;
@@ -315,25 +313,42 @@
         }
 
         async function submitMission() {
-            const seats = document.getElementById('pubTotalSeats').value;
-            const m = { owner: currentUser.email, org: currentUser.org, driver: document.getElementById('pubDriver').value, phone: document.getElementById('pubPhone').value, plate: document.getElementById('pubPlate').value, carType: document.getElementById('pubCarType').value, origin: document.getElementById('pubOrigin').value, dest: document.getElementById('pubDest').value, depTime: document.getElementById('pubDep').value, retTime: document.getElementById('pubRet').value, date: formatDate(currentDate), availableSeats: seats, totalSeats: seats };
-            await window.fs_addDoc(window.fs_collection(window.db, "missions"), m);
-            closeModal('publishModal'); document.getElementById('missionForm').reset();
+            try {
+                const seats = document.getElementById('pubTotalSeats').value;
+                const m = { owner: currentUser.email, org: currentUser.org, driver: document.getElementById('pubDriver').value, phone: document.getElementById('pubPhone').value, plate: document.getElementById('pubPlate').value, carType: document.getElementById('pubCarType').value, origin: document.getElementById('pubOrigin').value, dest: document.getElementById('pubDest').value, depTime: document.getElementById('pubDep').value, retTime: document.getElementById('pubRet').value, date: formatDate(currentDate), availableSeats: seats, totalSeats: seats };
+                await window.fs_addDoc(window.fs_collection(window.db, "missions"), m);
+                alert("Mission Published to Cloud!");
+                closeModal('publishModal'); 
+                document.getElementById('missionForm').reset();
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
         }
 
         async function submitBooking() {
-            const b = { missionId: activeTripId, requesterEmail: currentUser.email, org: currentUser.org, names: document.getElementById('reqNames').value, position: document.getElementById('reqPos').value, passengers: document.getElementById('reqSeats').value, status: 'pending' };
-            await window.fs_addDoc(window.fs_collection(window.db, "bookings"), b);
-            closeModal('requestModal'); document.getElementById('bookingForm').reset();
+            try {
+                const b = { missionId: activeTripId, requesterEmail: currentUser.email, org: currentUser.org, names: document.getElementById('reqNames').value, position: document.getElementById('reqPos').value, passengers: document.getElementById('reqSeats').value, status: 'pending' };
+                await window.fs_addDoc(window.fs_collection(window.db, "bookings"), b);
+                alert("Request Transmitted!");
+                closeModal('requestModal');
+                document.getElementById('bookingForm').reset();
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
         }
 
         async function approveRequest(bid) {
-            const b = activeBookings.find(x => x.id === bid);
-            const m = activeMissions.find(x => x.id === b.missionId);
-            if(parseInt(b.passengers) > parseInt(m.availableSeats)) return alert("INSUFFICIENT SEATS REMAINING!");
-            
-            await window.fs_updateDoc(window.fs_doc(window.db, "missions", m.id), { availableSeats: parseInt(m.availableSeats) - parseInt(b.passengers) });
-            await window.fs_updateDoc(window.fs_doc(window.db, "bookings", b.id), { status: 'approved' });
+            try {
+                const b = activeBookings.find(x => x.id === bid);
+                const m = activeMissions.find(x => x.id === b.missionId);
+                if(parseInt(b.passengers) > parseInt(m.availableSeats)) return alert("CRITICAL: VEHICLE CAPACITY EXCEEDED!");
+                
+                await window.fs_updateDoc(window.fs_doc(window.db, "missions", m.id), { availableSeats: parseInt(m.availableSeats) - parseInt(b.passengers) });
+                await window.fs_updateDoc(window.fs_doc(window.db, "bookings", b.id), { status: 'approved' });
+                alert("Access Approved!");
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
         }
 
         function openModal(id) { document.getElementById(id).style.display = 'block'; }
